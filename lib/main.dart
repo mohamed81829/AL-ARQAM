@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/azkar_screen.dart';
 import 'screens/prayer_times_screen.dart';
 import 'screens/qibla_screen.dart';
+import '../services/notification_service.dart';
 import 'screens/tasbeeh_screen.dart';
 
 void main() => runApp(const AlArqamApp());
