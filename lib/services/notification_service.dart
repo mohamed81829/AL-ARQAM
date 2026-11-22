@@ -62,8 +62,6 @@ class NotificationService {
               body,
               scheduled,
               details,
-              uiLocalNotificationDateInterpretation:
-                  UILocalNotificationDateInterpretation.absoluteTime,
               androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
             );
           } catch (_) {
@@ -74,8 +72,6 @@ class NotificationService {
               body,
               scheduled,
               details,
-              uiLocalNotificationDateInterpretation:
-                  UILocalNotificationDateInterpretation.absoluteTime,
               androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
             );
           }
