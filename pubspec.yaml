@@ -10,12 +10,12 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
-  flutter_local_notifications: ^19.5.0
-  timezone: ^0.10.0
     sdk: flutter
   adhan: ^2.0.0
   geolocator: ^13.0.1
   flutter_compass: ^0.8.0
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.0
   shared_preferences: ^2.3.2
 
 dev_dependencies:
