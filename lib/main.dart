@@ -7,7 +7,11 @@ import 'screens/qibla_screen.dart';
 import '../services/notification_service.dart';
 import 'screens/tasbeeh_screen.dart';
 
-void main() => runApp(const AlArqamApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
+  runApp(const AlArqamApp());
+}
 
 class AlArqamApp extends StatelessWidget {
   const AlArqamApp({super.key});
