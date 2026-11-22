@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'screens/azkar_screen.dart';
 import 'screens/prayer_times_screen.dart';
+import 'screens/qibla_screen.dart';
 import 'screens/tasbeeh_screen.dart';
 
 void main() => runApp(const AlArqamApp());
@@ -47,23 +48,33 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  static const _titles = ['مواقيت الصلاة', 'الأذكار', 'المسبحة'];
-  static const _pages = <Widget>[
-    PrayerTimesScreen(),
-    AzkarScreen(),
-    TasbeehScreen(),
-  ];
+  static const _titles = ['مواقيت الصلاة', 'القبلة', 'الأذكار', 'المسبحة'];
+
+  Widget _page(int i) {
+    switch (i) {
+      case 0:
+        return const PrayerTimesScreen();
+      case 1:
+        return const QiblaScreen();
+      case 2:
+        return const AzkarScreen();
+      default:
+        return const TasbeehScreen();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_titles[_index]), centerTitle: true),
-      body: IndexedStack(index: _index, children: _pages),
+      // الصفحة الحالية بس هي اللي بتشتغل، عشان البوصلة ما تستهلكش البطارية في الخلفية
+      body: _page(_index),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.access_time), label: 'المواقيت'),
+          NavigationDestination(icon: Icon(Icons.explore), label: 'القبلة'),
           NavigationDestination(icon: Icon(Icons.menu_book), label: 'الأذكار'),
           NavigationDestination(icon: Icon(Icons.touch_app), label: 'المسبحة'),
         ],
