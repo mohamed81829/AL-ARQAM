@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/azkar_screen.dart';
 import 'screens/prayer_times_screen.dart';
 import 'screens/qibla_screen.dart';
+import 'screens/quran_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/tasbeeh_screen.dart';
 import 'services/app_settings.dart';
@@ -65,7 +66,13 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   int _settingsVersion = 0;
 
-  static const _titles = ['مواقيت الصلاة', 'القبلة', 'الأذكار', 'المسبحة'];
+  static const _titles = [
+    'مواقيت الصلاة',
+    'القبلة',
+    'الأذكار',
+    'المسبحة',
+    'المصحف',
+  ];
 
   Widget _page(int i) {
     switch (i) {
@@ -76,8 +83,10 @@ class _HomeShellState extends State<HomeShell> {
         return const QiblaScreen();
       case 2:
         return const AzkarScreen();
-      default:
+      case 3:
         return const TasbeehScreen();
+      default:
+        return const QuranScreen();
     }
   }
 
@@ -112,6 +121,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(icon: Icon(Icons.explore), label: 'القبلة'),
           NavigationDestination(icon: Icon(Icons.menu_book), label: 'الأذكار'),
           NavigationDestination(icon: Icon(Icons.touch_app), label: 'المسبحة'),
+          NavigationDestination(icon: Icon(Icons.auto_stories), label: 'المصحف'),
         ],
       ),
     );
