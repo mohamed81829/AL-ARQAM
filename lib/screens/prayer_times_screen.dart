@@ -63,6 +63,18 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     });
   }
 
+  Future<void> _testNotification() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await NotificationService.scheduleTest();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(ok
+            ? 'تمام، هيجيلك إشعار بعد 10 ثواني. اقفل الشاشة أو اخرج من التطبيق.'
+            : 'الإشعارات غير مفعّلة. تأكد من السماح بها في إعدادات الموبايل.'),
+      ),
+    );
+  }
+
   String _fmt(DateTime t) {
     final l = t.toLocal();
     final h12 = l.hour % 12 == 0 ? 12 : l.hour % 12;
@@ -110,6 +122,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                         fontSize: 20, fontWeight: FontWeight.bold)),
               ),
             ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _testNotification,
+            icon: const Icon(Icons.notifications_active),
+            label: const Text('تجربة الإشعار (بعد 10 ثواني)'),
+          ),
         ],
       ),
     );
