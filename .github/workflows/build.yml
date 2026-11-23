@@ -23,12 +23,37 @@ jobs:
       - name: Create Android project
         run: flutter create --org com.alarqam --project-name al_arqam --platforms=android .
 
-      - name: Add adhan sound (optional)
+      - name: Add adhan sounds (optional)
         run: |
-          if [ -f sounds/adhan.mp3 ]; then
-            mkdir -p android/app/src/main/res/raw
-            cp sounds/adhan.mp3 android/app/src/main/res/raw/adhan.mp3
-          fi
+          python3 - <<'PY'
+          import pathlib, shutil, unicodedata
+
+          names = {
+              'ابوالعينين شعيشع': 'sheisha',
+              'الاذان المكى': 'makki',
+              'البنا': 'banna',
+              'الحصرى': 'husary',
+              'القدس': 'quds',
+              'المدينة': 'madina',
+              'المنشاوى': 'minshawi',
+              'عبدالباسط': 'abdelbasit',
+          }
+          names = {unicodedata.normalize('NFC', k): v for k, v in names.items()}
+          raw = pathlib.Path('android/app/src/main/res/raw')
+          src = pathlib.Path('sounds')
+          if src.exists():
+              raw.mkdir(parents=True, exist_ok=True)
+              for f in sorted(src.rglob('*')):
+                  if not f.is_file():
+                      continue
+                  stem = unicodedata.normalize('NFC', f.stem).strip()
+                  key = names.get(stem)
+                  if key:
+                      shutil.copy(f, raw / ('adhan_' + key + '.mp3'))
+                      print('added', key, '<-', f.name)
+                  else:
+                      print('skipped', f.name)
+          PY
 
       - name: Add location permissions
         run: |
