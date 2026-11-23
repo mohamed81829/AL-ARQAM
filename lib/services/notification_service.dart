@@ -9,6 +9,16 @@ class NotificationService {
 
   static const _names = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
 
+  static const _details = NotificationDetails(
+    android: AndroidNotificationDetails(
+      'prayer_times_v1',
+      'مواقيت الصلاة',
+      channelDescription: 'تنبيه عند دخول وقت كل صلاة',
+      importance: Importance.max,
+      priority: Priority.high,
+    ),
+  );
+
   static Future<void> init() async {
     try {
       tzdata.initializeTimeZones();
@@ -24,6 +34,30 @@ class NotificationService {
     }
   }
 
+  static Future<void> _schedule(
+      int id, String title, String body, tz.TZDateTime when) async {
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        when,
+        _details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+    } catch (_) {
+      // لو الأندرويد رفض التوقيت الدقيق، نستخدم توقيت تقريبي
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        when,
+        _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
   /// يجدول إشعارات الصلوات الخمس للأيام السبعة القادمة.
   static Future<void> schedulePrayers(Coordinates coords) async {
     if (!_ready) return;
@@ -31,16 +65,6 @@ class NotificationService {
       await _plugin.cancelAll();
       final params = CalculationMethod.egyptian.getParameters();
       final now = DateTime.now();
-
-      const details = NotificationDetails(
-        android: AndroidNotificationDetails(
-          'prayer_times_v1',
-          'مواقيت الصلاة',
-          channelDescription: 'تنبيه عند دخول وقت كل صلاة',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      );
 
       for (var d = 0; d < 7; d++) {
         final date = now.add(Duration(days: d));
@@ -50,35 +74,34 @@ class NotificationService {
         for (var i = 0; i < times.length; i++) {
           final when = times[i];
           if (!when.isAfter(now)) continue;
-          final scheduled = tz.TZDateTime.from(when, tz.UTC);
-          final id = d * 10 + i;
-          final title = 'حان الآن وقت صلاة ${_names[i]}';
-          const body = 'حيّ على الصلاة';
-
-          try {
-            await _plugin.zonedSchedule(
-              id,
-              title,
-              body,
-              scheduled,
-              details,
-              androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-            );
-          } catch (_) {
-            // لو الأندرويد رفض التوقيت الدقيق، نستخدم توقيت تقريبي
-            await _plugin.zonedSchedule(
-              id,
-              title,
-              body,
-              scheduled,
-              details,
-              androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-            );
-          }
+          await _schedule(
+            d * 10 + i,
+            'حان الآن وقت صلاة ${_names[i]}',
+            'حيّ على الصلاة',
+            tz.TZDateTime.from(when, tz.UTC),
+          );
         }
       }
     } catch (_) {
       // الإشعارات ميزة إضافية، فلا نوقف التطبيق لو فشلت
+    }
+  }
+
+  /// إشعار تجريبي بعد 10 ثواني. بيرجّع false لو الإشعارات مش جاهزة.
+  static Future<bool> scheduleTest() async {
+    if (!_ready) return false;
+    try {
+      final when =
+          tz.TZDateTime.now(tz.UTC).add(const Duration(seconds: 10));
+      await _schedule(
+        9999,
+        'تجربة الإشعار',
+        'لو شفت الإشعار ده يبقى الإشعارات شغالة ✓',
+        when,
+      );
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 }
