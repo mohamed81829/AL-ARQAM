@@ -15,11 +15,23 @@ class AppSettings {
     'kuwait': 'الكويت',
   };
 
+  /// أصوات الأذان: المفتاح هو اسم الملف في الأندرويد (adhan_المفتاح).
+  static const adhanSounds = <String, String>{
+    'sheisha': 'أبو العينين شعيشع',
+    'makki': 'الأذان المكي',
+    'banna': 'البنا',
+    'husary': 'الحصري',
+    'quds': 'القدس',
+    'madina': 'المدينة',
+    'minshawi': 'المنشاوي',
+    'abdelbasit': 'عبد الباسط',
+  };
+
   static const prayerNames = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
 
   static String method = 'egyptian';
   static bool hanafi = false;
-  static String sound = 'default'; // default | adhan
+  static String sound = 'default'; // default أو أحد مفاتيح adhanSounds
   static List<bool> alerts = [true, true, true, true, true];
 
   static Future<void> load() async {
@@ -27,7 +39,8 @@ class AppSettings {
     final m = p.getString('method') ?? 'egyptian';
     method = methodNames.containsKey(m) ? m : 'egyptian';
     hanafi = p.getBool('hanafi') ?? false;
-    sound = p.getString('sound') ?? 'default';
+    final s = p.getString('sound') ?? 'default';
+    sound = (s == 'default' || adhanSounds.containsKey(s)) ? s : 'default';
     alerts = [for (var i = 0; i < 5; i++) p.getBool('alert_$i') ?? true];
     final t = p.getString('theme') ?? 'system';
     themeMode.value = t == 'light'
