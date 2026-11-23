@@ -3,21 +3,38 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'app_settings.dart';
+
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _ready = false;
 
   static const _names = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
 
-  static const _details = NotificationDetails(
-    android: AndroidNotificationDetails(
-      'prayer_times_v1',
-      'مواقيت الصلاة',
-      channelDescription: 'تنبيه عند دخول وقت كل صلاة',
-      importance: Importance.max,
-      priority: Priority.high,
-    ),
-  );
+  static NotificationDetails _details() {
+    if (AppSettings.sound == 'adhan') {
+      return const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'prayer_adhan_v1',
+          'أذان الصلاة',
+          channelDescription: 'تنبيه بصوت الأذان عند دخول وقت الصلاة',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('adhan'),
+        ),
+      );
+    }
+    return const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'prayer_times_v1',
+        'مواقيت الصلاة',
+        channelDescription: 'تنبيه عند دخول وقت كل صلاة',
+        importance: Importance.max,
+        priority: Priority.high,
+      ),
+    );
+  }
 
   static Future<void> init() async {
     try {
@@ -34,15 +51,15 @@ class NotificationService {
     }
   }
 
-  static Future<void> _schedule(
-      int id, String title, String body, tz.TZDateTime when) async {
+  static Future<void> _schedule(int id, String title, String body,
+      tz.TZDateTime when, NotificationDetails details) async {
     try {
       await _plugin.zonedSchedule(
         id,
         title,
         body,
         when,
-        _details,
+        details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     } catch (_) {
@@ -52,18 +69,19 @@ class NotificationService {
         title,
         body,
         when,
-        _details,
+        details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
   }
 
-  /// يجدول إشعارات الصلوات الخمس للأيام السبعة القادمة.
+  /// يجدول إشعارات الصلوات للأيام السبعة القادمة حسب الإعدادات.
   static Future<void> schedulePrayers(Coordinates coords) async {
     if (!_ready) return;
     try {
       await _plugin.cancelAll();
-      final params = CalculationMethod.egyptian.getParameters();
+      final params = AppSettings.params();
+      final details = _details();
       final now = DateTime.now();
 
       for (var d = 0; d < 7; d++) {
@@ -72,6 +90,7 @@ class NotificationService {
         final times = [t.fajr, t.dhuhr, t.asr, t.maghrib, t.isha];
 
         for (var i = 0; i < times.length; i++) {
+          if (!AppSettings.alerts[i]) continue;
           final when = times[i];
           if (!when.isAfter(now)) continue;
           await _schedule(
@@ -79,6 +98,7 @@ class NotificationService {
             'حان الآن وقت صلاة ${_names[i]}',
             'حيّ على الصلاة',
             tz.TZDateTime.from(when, tz.UTC),
+            details,
           );
         }
       }
@@ -87,7 +107,7 @@ class NotificationService {
     }
   }
 
-  /// إشعار تجريبي بعد 10 ثواني. بيرجّع false لو الإشعارات مش جاهزة.
+  /// إشعار تجريبي بعد 10 ثواني بالصوت المختار.
   static Future<bool> scheduleTest() async {
     if (!_ready) return false;
     try {
@@ -98,6 +118,7 @@ class NotificationService {
         'تجربة الإشعار',
         'لو شفت الإشعار ده يبقى الإشعارات شغالة ✓',
         when,
+        _details(),
       );
       return true;
     } catch (_) {
