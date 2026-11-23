@@ -69,9 +69,9 @@ class _HomeShellState extends State<HomeShell> {
   static const _titles = [
     'مواقيت الصلاة',
     'القبلة',
+    'المصحف',
     'الأذكار',
     'المسبحة',
-    'المصحف',
   ];
 
   Widget _page(int i) {
@@ -82,11 +82,11 @@ class _HomeShellState extends State<HomeShell> {
       case 1:
         return const QiblaScreen();
       case 2:
-        return const AzkarScreen();
-      case 3:
-        return const TasbeehScreen();
-      default:
         return const QuranScreen();
+      case 3:
+        return const AzkarScreen();
+      default:
+        return const TasbeehScreen();
     }
   }
 
@@ -119,9 +119,9 @@ class _HomeShellState extends State<HomeShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.access_time), label: 'المواقيت'),
           NavigationDestination(icon: Icon(Icons.explore), label: 'القبلة'),
+          NavigationDestination(icon: Icon(Icons.auto_stories), label: 'المصحف'),
           NavigationDestination(icon: Icon(Icons.menu_book), label: 'الأذكار'),
           NavigationDestination(icon: Icon(Icons.touch_app), label: 'المسبحة'),
-          NavigationDestination(icon: Icon(Icons.auto_stories), label: 'المصحف'),
         ],
       ),
     );
