@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/quran_repository.dart';
+import 'hifz_screen.dart';
 import 'surah_reader_screen.dart';
 
 class QuranScreen extends StatefulWidget {
@@ -74,6 +75,7 @@ class _QuranScreenState extends State<QuranScreen> {
     final lastChapter = last == null
         ? null
         : QuranRepository.chapters.where((c) => c.id == last.$1).firstOrNull;
+    final searching = _query.trim().isNotEmpty;
 
     return Column(
       children: [
@@ -90,7 +92,22 @@ class _QuranScreenState extends State<QuranScreen> {
             onChanged: (v) => setState(() => _query = v),
           ),
         ),
-        if (last != null && lastChapter != null && _query.trim().isEmpty)
+        if (!searching)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            child: Card(
+              child: ListTile(
+                leading: const Icon(Icons.school),
+                title: const Text('الحفظ والورد اليومي'),
+                subtitle: const Text('خطة حفظ ومراجعة يومية'),
+                trailing: const Icon(Icons.chevron_left),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HifzScreen()),
+                ),
+              ),
+            ),
+          ),
+        if (last != null && lastChapter != null && !searching)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
             child: Card(
