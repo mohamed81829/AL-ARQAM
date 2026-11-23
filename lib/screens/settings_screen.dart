@@ -73,15 +73,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _header('صوت التنبيه'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'default', label: Text('صوت الموبايل')),
-                ButtonSegment(value: 'adhan', label: Text('الأذان')),
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: AppSettings.sound,
+              items: [
+                const DropdownMenuItem(
+                  value: 'default',
+                  child: Text('صوت الموبايل العادي'),
+                ),
+                for (final e in AppSettings.adhanSounds.entries)
+                  DropdownMenuItem(value: e.key, child: Text(e.value)),
               ],
-              selected: {AppSettings.sound},
-              onSelectionChanged: (s) {
+              onChanged: (v) {
+                if (v == null) return;
                 setState(() {
-                  AppSettings.setSound(s.first);
+                  AppSettings.setSound(v);
                 });
               },
             ),
@@ -89,8 +95,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Text(
-              'لتفعيل صوت الأذان: ارفع ملف صوتي باسم adhan.mp3 داخل فولدر '
-              'sounds في المشروع على GitHub، وانتظر البناء الجديد.',
+              'بعد اختيار الصوت، ارجع لتبويب المواقيت واضغط "تجربة الإشعار" '
+              'عشان تسمعه.',
               style: TextStyle(fontSize: 13),
             ),
           ),
