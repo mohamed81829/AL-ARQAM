@@ -4,11 +4,16 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/azkar_screen.dart';
 import 'screens/prayer_times_screen.dart';
 import 'screens/qibla_screen.dart';
-import 'services/notification_service.dart';
+import 'screens/settings_screen.dart';
 import 'screens/tasbeeh_screen.dart';
+import 'services/app_settings.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await AppSettings.load();
+  } catch (_) {}
   await NotificationService.init();
   runApp(const AlArqamApp());
 }
@@ -18,27 +23,33 @@ class AlArqamApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'الأرقم',
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('ar'),
-      supportedLocales: const [Locale('ar')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF1B7F5C),
-        brightness: Brightness.light,
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF1B7F5C),
-        brightness: Brightness.dark,
-      ),
-      home: const HomeShell(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: AppSettings.themeMode,
+      builder: (context, mode, _) {
+        return MaterialApp(
+          title: 'الأرقم',
+          debugShowCheckedModeBanner: false,
+          locale: const Locale('ar'),
+          supportedLocales: const [Locale('ar')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          themeMode: mode,
+          theme: ThemeData(
+            useMaterial3: true,
+            colorSchemeSeed: const Color(0xFF1B7F5C),
+            brightness: Brightness.light,
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorSchemeSeed: const Color(0xFF1B7F5C),
+            brightness: Brightness.dark,
+          ),
+          home: const HomeShell(),
+        );
+      },
     );
   }
 }
@@ -52,13 +63,15 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  int _settingsVersion = 0;
 
   static const _titles = ['مواقيت الصلاة', 'القبلة', 'الأذكار', 'المسبحة'];
 
   Widget _page(int i) {
     switch (i) {
       case 0:
-        return const PrayerTimesScreen();
+        // المفتاح بيخلي الصفحة تتحمّل من جديد بعد تغيير الإعدادات
+        return PrayerTimesScreen(key: ValueKey(_settingsVersion));
       case 1:
         return const QiblaScreen();
       case 2:
@@ -68,11 +81,28 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+    if (!mounted) return;
+    setState(() => _settingsVersion++);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_index]), centerTitle: true),
-      // الصفحة الحالية بس هي اللي بتشتغل، عشان البوصلة ما تستهلكش البطارية في الخلفية
+      appBar: AppBar(
+        title: Text(_titles[_index]),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'الإعدادات',
+            icon: const Icon(Icons.settings),
+            onPressed: _openSettings,
+          ),
+        ],
+      ),
       body: _page(_index),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
