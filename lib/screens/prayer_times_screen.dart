@@ -2,6 +2,7 @@ import 'package:adhan/adhan.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../services/app_settings.dart';
 import '../services/notification_service.dart';
 
 class PrayerTimesScreen extends StatefulWidget {
@@ -54,7 +55,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     final coords = await _locate();
     // نجدول الإشعارات بس لو موقعك الحقيقي متاح
     if (!_usingDefault) NotificationService.schedulePrayers(coords);
-    final params = CalculationMethod.egyptian.getParameters();
+    final params = AppSettings.params();
     final times = PrayerTimes.today(coords, params);
     if (!mounted) return;
     setState(() {
