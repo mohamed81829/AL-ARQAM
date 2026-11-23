@@ -12,16 +12,19 @@ class NotificationService {
   static const _names = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
 
   static NotificationDetails _details() {
-    if (AppSettings.sound == 'adhan') {
-      return const NotificationDetails(
+    final key = AppSettings.sound;
+    final label = AppSettings.adhanSounds[key];
+    if (label != null) {
+      // لكل مؤذن قناة إشعارات مستقلة، لأن صوت القناة في الأندرويد ما بيتغيّرش
+      return NotificationDetails(
         android: AndroidNotificationDetails(
-          'prayer_adhan_v1',
-          'أذان الصلاة',
+          'prayer_adhan_${key}_v1',
+          'أذان - $label',
           channelDescription: 'تنبيه بصوت الأذان عند دخول وقت الصلاة',
           importance: Importance.max,
           priority: Priority.high,
           playSound: true,
-          sound: RawResourceAndroidNotificationSound('adhan'),
+          sound: RawResourceAndroidNotificationSound('adhan_$key'),
         ),
       );
     }
