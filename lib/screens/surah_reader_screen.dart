@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/quran_repository.dart';
+import '../services/quran_audio.dart';
 
 class SurahReaderScreen extends StatefulWidget {
   final int chapterId;
@@ -20,6 +21,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
   late final Chapter _chapter;
   late final List<VerseItem> _verses;
   late final List<GlobalKey> _keys;
+  final QuranAudio _audio = QuranAudio.instance;
   double _fontSize = 28;
   int? _marked;
 
@@ -30,7 +32,37 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         .firstWhere((c) => c.id == widget.chapterId);
     _verses = QuranRepository.verses(widget.chapterId);
     _keys = List.generate(_verses.length, (_) => GlobalKey());
+    _audio.init();
+    _audio.currentVerse.addListener(_onAudioVerse);
+    _audio.error.addListener(_onAudioError);
     _loadPrefs();
+  }
+
+  @override
+  void dispose() {
+    _audio.currentVerse.removeListener(_onAudioVerse);
+    _audio.error.removeListener(_onAudioError);
+    _audio.stop();
+    super.dispose();
+  }
+
+  void _onAudioVerse() {
+    if (!mounted) return;
+    setState(() {});
+    final v = _audio.currentVerse.value;
+    if (v != null && _audio.currentChapter.value == widget.chapterId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollTo(v, animate: true);
+      });
+    }
+  }
+
+  void _onAudioError() {
+    final msg = _audio.error.value;
+    if (msg == null || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _loadPrefs() async {
@@ -48,14 +80,14 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     }
   }
 
-  void _scrollTo(int verse) {
+  void _scrollTo(int verse, {bool animate = false}) {
     if (verse < 1 || verse > _keys.length) return;
     final ctx = _keys[verse - 1].currentContext;
     if (ctx == null) return;
     Scrollable.ensureVisible(
       ctx,
-      alignment: 0.1,
-      duration: Duration.zero,
+      alignment: animate ? 0.3 : 0.1,
+      duration: animate ? const Duration(milliseconds: 300) : Duration.zero,
     );
   }
 
@@ -78,6 +110,53 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
       );
   }
 
+  void _togglePlay() {
+    final active = _audio.currentChapter.value == widget.chapterId &&
+        _audio.currentVerse.value != null;
+    if (active) {
+      if (_audio.playing.value) {
+        _audio.pause();
+      } else {
+        _audio.resume();
+      }
+    } else {
+      _audio.playFrom(widget.chapterId, _marked ?? 1, _verses.length);
+    }
+  }
+
+  void _pickReciter() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'اختر القارئ',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              for (final r in reciters)
+                ListTile(
+                  title: Text(r.name),
+                  trailing:
+                      r.id == _audio.reciter.id ? const Icon(Icons.check) : null,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _audio.setReciter(r);
+                    setState(() {});
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _arabicDigits(int n) {
     const digits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     return n.toString().split('').map((c) => digits[int.parse(c)]).join();
@@ -90,6 +169,8 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         ? QuranRepository.stripBismillah(_chapter.id, v.text)
         : v.text;
     final marked = _marked == v.number;
+    final isPlaying = _audio.currentChapter.value == widget.chapterId &&
+        _audio.currentVerse.value == v.number;
 
     return InkWell(
       key: _keys[i],
@@ -98,7 +179,9 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         decoration: BoxDecoration(
-          color: marked ? scheme.primaryContainer : null,
+          color: isPlaying
+              ? scheme.tertiaryContainer
+              : (marked ? scheme.primaryContainer : null),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text.rich(
@@ -125,6 +208,103 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     );
   }
 
+  Widget _playerBar() {
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: Material(
+        color: scheme.secondaryContainer,
+        child: AnimatedBuilder(
+          animation: Listenable.merge([
+            _audio.playing,
+            _audio.loading,
+            _audio.currentVerse,
+            _audio.currentChapter,
+          ]),
+          builder: (context, _) {
+            final active = _audio.currentChapter.value == widget.chapterId &&
+                _audio.currentVerse.value != null;
+            final isPlaying = active && _audio.playing.value;
+            final isLoading = active && _audio.loading.value;
+            final verse = _audio.currentVerse.value;
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                children: [
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'الآية السابقة',
+                          icon: const Icon(Icons.skip_previous),
+                          onPressed: active ? _audio.previous : null,
+                        ),
+                        if (isLoading)
+                          const SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        else
+                          IconButton(
+                            tooltip: isPlaying ? 'إيقاف مؤقت' : 'تشغيل',
+                            iconSize: 36,
+                            icon: Icon(
+                              isPlaying ? Icons.pause_circle : Icons.play_circle,
+                            ),
+                            onPressed: _togglePlay,
+                          ),
+                        IconButton(
+                          tooltip: 'الآية التالية',
+                          icon: const Icon(Icons.skip_next),
+                          onPressed: active ? _audio.next : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: _pickReciter,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _audio.reciter.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              active && verse != null
+                                  ? 'الآية $verse من ${_verses.length}'
+                                  : 'اضغط هنا لتغيير القارئ',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_up),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final showBismillah = _chapter.id != 1 && _chapter.id != 9;
@@ -146,6 +326,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: _playerBar(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(
