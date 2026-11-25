@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/hifz_store.dart';
 import '../data/quran_repository.dart';
 import '../services/quran_audio.dart';
+import '../services/recitation_controller.dart';
 
 enum HifzMode { newVerses, review }
 
@@ -23,6 +24,7 @@ class HifzSessionScreen extends StatefulWidget {
 class _HifzSessionScreenState extends State<HifzSessionScreen> {
   final HifzStore _store = HifzStore.instance;
   final QuranAudio _audio = QuranAudio.instance;
+  final RecitationController _rec = RecitationController();
 
   int _index = 0;
   bool _hidden = false;
@@ -41,13 +43,20 @@ class _HifzSessionScreenState extends State<HifzSessionScreen> {
     _hidden = !_isNew;
     _audio.init();
     _audio.error.addListener(_onAudioError);
+    _rec.addListener(_onRec);
   }
 
   @override
   void dispose() {
     _audio.error.removeListener(_onAudioError);
+    _rec.removeListener(_onRec);
+    _rec.dispose();
     _audio.stop();
     super.dispose();
+  }
+
+  void _onRec() {
+    if (mounted) setState(() {});
   }
 
   void _onAudioError() {
@@ -65,11 +74,27 @@ class _HifzSessionScreenState extends State<HifzSessionScreen> {
   }
 
   void _listen() {
+    if (_rec.isListening) return;
     final r = _current;
     _audio.playFrom(r.chapter, r.verse, r.verse);
   }
 
+  Future<void> _toggleRecite() async {
+    if (_rec.isListening) {
+      await _rec.stop();
+      return;
+    }
+    await _audio.stop();
+    setState(() {
+      _hidden = true;
+      _hint = false;
+      _message = null;
+    });
+    await _rec.start(_textOf(_current));
+  }
+
   void _goNext() {
+    _rec.stop();
     if (_index + 1 >= widget.items.length) {
       _finish();
     } else {
@@ -155,6 +180,126 @@ class _HifzSessionScreenState extends State<HifzSessionScreen> {
     );
   }
 
+  Widget _recitationView() {
+    final shown = _rec.confirmed.clamp(0, _rec.words.length);
+    final children = <Widget>[];
+    for (var i = 0; i < shown; i++) {
+      children.add(
+        Text(
+          _rec.words[i],
+          style: TextStyle(
+            fontFamily: 'AmiriQuran',
+            fontSize: 28,
+            height: 2.0,
+            color: Colors.green.shade700,
+          ),
+        ),
+      );
+    }
+    final m = _rec.mistakeIndex;
+    if (m != null && m < _rec.words.length) {
+      children.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.red.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            _rec.words[m],
+            style: TextStyle(
+              fontFamily: 'AmiriQuran',
+              fontSize: 28,
+              height: 2.0,
+              color: Colors.red.shade900,
+            ),
+          ),
+        ),
+      );
+    }
+    if (children.isEmpty) {
+      children.add(const Icon(Icons.mic, size: 48));
+    }
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 4,
+      children: children,
+    );
+  }
+
+  Widget _recStatus() {
+    final state = _rec.state;
+    if (state == RecitationState.idle) return const SizedBox.shrink();
+    final heard = _rec.heard;
+    final String msg = switch (state) {
+      RecitationState.idle => '',
+      RecitationState.listening => 'جاري الاستماع... سمّع الآية من ذاكرتك',
+      RecitationState.wrong => (heard == null || heard.isEmpty)
+          ? 'أخطأت ✗ — الكلمة الصحيحة بالأحمر'
+          : 'أخطأت ✗ — سمعتك تقول "$heard" والصح بالأحمر',
+      RecitationState.missed => 'حسبك ✋ نسيت كلمة — الكلمة الصحيحة بالأحمر',
+      RecitationState.stuck => 'حسبك ✋ توقفت — الكلمة الجاية بالأحمر',
+      RecitationState.complete => 'أحسنت ✓ سمّعتها كاملة',
+      RecitationState.error => _rec.errorText ?? 'حصل خطأ',
+    };
+    Color? color;
+    if (state == RecitationState.wrong ||
+        state == RecitationState.missed ||
+        state == RecitationState.stuck ||
+        state == RecitationState.error) {
+      color = Colors.red.shade700;
+    } else if (state == RecitationState.complete) {
+      color = Colors.green.shade700;
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        msg,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _contentArea(String text, String firstWords) {
+    if (_hidden) {
+      if (_rec.state != RecitationState.idle) return _recitationView();
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.visibility_off, size: 48),
+          if (_hint) ...[
+            const SizedBox(height: 16),
+            Text(
+              '$firstWords …',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'AmiriQuran',
+                fontSize: 28,
+                height: 2.0,
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontFamily: 'AmiriQuran',
+        fontSize: 30,
+        height: 2.0,
+      ),
+    );
+  }
+
   Widget _cardView() {
     final r = _current;
     final chapter =
@@ -177,37 +322,11 @@ class _HifzSessionScreenState extends State<HifzSessionScreen> {
           Expanded(
             child: Center(
               child: SingleChildScrollView(
-                child: _hidden
-                    ? Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.visibility_off, size: 48),
-                          if (_hint) ...[
-                            const SizedBox(height: 16),
-                            Text(
-                              '$firstWords …',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'AmiriQuran',
-                                fontSize: 28,
-                                height: 2.0,
-                              ),
-                            ),
-                          ],
-                        ],
-                      )
-                    : Text(
-                        text,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'AmiriQuran',
-                          fontSize: 30,
-                          height: 2.0,
-                        ),
-                      ),
+                child: _contentArea(text, firstWords),
               ),
             ),
           ),
+          _recStatus(),
           if (_message != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -222,12 +341,23 @@ class _HifzSessionScreenState extends State<HifzSessionScreen> {
             runSpacing: 8,
             alignment: WrapAlignment.center,
             children: [
+              FilledButton.icon(
+                onPressed: _toggleRecite,
+                icon: Icon(_rec.isListening ? Icons.stop : Icons.mic),
+                label: Text(
+                  _rec.isListening
+                      ? 'إيقاف'
+                      : (_rec.state == RecitationState.idle
+                          ? 'سمّع'
+                          : 'أعد المحاولة'),
+                ),
+              ),
               FilledButton.tonalIcon(
                 onPressed: _listen,
                 icon: const Icon(Icons.volume_up),
                 label: const Text('استمع'),
               ),
-              if (_hidden && !_hint)
+              if (_hidden && !_hint && _rec.state == RecitationState.idle)
                 OutlinedButton.icon(
                   onPressed: () => setState(() => _hint = true),
                   icon: const Icon(Icons.lightbulb_outline),
