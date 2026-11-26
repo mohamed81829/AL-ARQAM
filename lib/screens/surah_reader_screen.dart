@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/quran_repository.dart';
 import '../services/quran_audio.dart';
+import 'recitation_screen.dart';
 
 class SurahReaderScreen extends StatefulWidget {
   final int chapterId;
@@ -32,7 +33,9 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         .firstWhere((c) => c.id == widget.chapterId);
     _verses = QuranRepository.verses(widget.chapterId);
     _keys = List.generate(_verses.length, (_) => GlobalKey());
-    _audio.init();
+    _audio.init().then((_) {
+      if (mounted) setState(() {});
+    });
     _audio.currentVerse.addListener(_onAudioVerse);
     _audio.error.addListener(_onAudioError);
     _loadPrefs();
@@ -122,6 +125,37 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     } else {
       _audio.playFrom(widget.chapterId, _marked ?? 1, _verses.length);
     }
+  }
+
+  Future<void> _toggleMode() async {
+    await _audio.setContinuous(!_audio.continuous);
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            _audio.continuous
+                ? 'قراءة متواصلة: الآيات تتتابع لآخر السورة'
+                : 'آية آية: التلاوة بتقف بعد كل آية',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  Future<void> _openRecitation() async {
+    await _audio.stop();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RecitationScreen(
+          chapterId: widget.chapterId,
+          startVerse: _marked ?? 1,
+        ),
+      ),
+    );
   }
 
   void _pickReciter() {
@@ -286,7 +320,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                             ),
                             Text(
                               active && verse != null
-                                  ? 'الآية $verse من ${_verses.length}'
+                                  ? 'الآية $verse من ${_verses.length} • ${_audio.continuous ? 'متواصل' : 'آية آية'}'
                                   : 'اضغط هنا لتغيير القارئ',
                               style: const TextStyle(fontSize: 12),
                             ),
@@ -295,7 +329,17 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                       ),
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_up),
+                  IconButton(
+                    tooltip: _audio.continuous
+                        ? 'قراءة متواصلة (اضغط للتحويل لآية آية)'
+                        : 'آية آية (اضغط للتحويل لمتواصلة)',
+                    icon: Icon(
+                      _audio.continuous
+                          ? Icons.playlist_play
+                          : Icons.looks_one_outlined,
+                    ),
+                    onPressed: _toggleMode,
+                  ),
                 ],
               ),
             );
@@ -314,6 +358,11 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         title: Text('سورة ${_chapter.name}'),
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: 'تسميع',
+            icon: const Icon(Icons.mic),
+            onPressed: _openRecitation,
+          ),
           IconButton(
             tooltip: 'تصغير الخط',
             icon: const Icon(Icons.text_decrease),
