@@ -30,6 +30,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/quran/
+    - assets/adhan/
     - assets/fonts/OFL.txt
   fonts:
     - family: AmiriQuran
