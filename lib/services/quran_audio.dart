@@ -37,6 +37,7 @@ class QuranAudio {
   final ValueNotifier<String?> error = ValueNotifier<String?>(null);
 
   Reciter reciter = reciters.first;
+  bool continuous = true; // true: متواصل، false: آية آية
   int _totalVerses = 0;
   int _token = 0; // لتجاهل أحداث الآيات القديمة بعد التبديل
   bool _initialized = false;
@@ -50,6 +51,15 @@ class QuranAudio {
       for (final r in reciters) {
         if (r.id == id) reciter = r;
       }
+      continuous = p.getBool('quran_continuous') ?? true;
+    } catch (_) {}
+  }
+
+  Future<void> setContinuous(bool value) async {
+    continuous = value;
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool('quran_continuous', value);
     } catch (_) {}
   }
 
@@ -92,7 +102,7 @@ class QuranAudio {
     await _player.play();
     if (token != _token) return;
     if (_player.processingState == ProcessingState.completed) {
-      if (verse < _totalVerses) {
+      if (continuous && verse < _totalVerses) {
         _playVerse(chapter, verse + 1);
       } else {
         playing.value = false;
@@ -105,7 +115,7 @@ class QuranAudio {
     await _player.pause();
   }
 
-  void resume() {
+  Future<void> resume() async {
     final c = currentChapter.value;
     final v = currentVerse.value;
     if (c == null || v == null) return;
@@ -114,6 +124,12 @@ class QuranAudio {
       return;
     }
     playing.value = true;
+    try {
+      // لو الآية خلصت (وضع آية آية) نعيدها من أولها
+      if (_player.processingState == ProcessingState.completed) {
+        await _player.seek(Duration.zero);
+      }
+    } catch (_) {}
     _listenToEnd(_token, c, v);
   }
 
