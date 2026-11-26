@@ -16,9 +16,10 @@ class NotificationService {
     final label = AppSettings.adhanSounds[key];
     if (label != null) {
       // لكل مؤذن قناة إشعارات مستقلة، لأن صوت القناة في الأندرويد ما بيتغيّرش
+      // بعد إنشائها (v2: قنوات جديدة بعد إصلاح مشكلة الصوت الصامت)
       return NotificationDetails(
         android: AndroidNotificationDetails(
-          'prayer_adhan_${key}_v1',
+          'prayer_adhan_${key}_v2',
           'أذان - $label',
           channelDescription: 'تنبيه بصوت الأذان عند دخول وقت الصلاة',
           importance: Importance.max,
@@ -121,6 +122,22 @@ class NotificationService {
         'تجربة الإشعار',
         'لو شفت الإشعار ده يبقى الإشعارات شغالة ✓',
         when,
+        _details(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// إشعار فوري بالصوت المختار (للمعاينة).
+  static Future<bool> showNow() async {
+    if (!_ready) return false;
+    try {
+      await _plugin.show(
+        9998,
+        'معاينة الصوت',
+        'ده صوت التنبيه الحالي',
         _details(),
       );
       return true;
