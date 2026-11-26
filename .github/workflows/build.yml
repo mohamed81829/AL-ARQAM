@@ -53,17 +53,31 @@ jobs:
               'عبدالباسط': 'abdelbasit',
           }
           names = {unicodedata.normalize('NFC', k): v for k, v in names.items()}
+
           raw = pathlib.Path('android/app/src/main/res/raw')
+          preview = pathlib.Path('assets/adhan')
+          raw.mkdir(parents=True, exist_ok=True)
+          preview.mkdir(parents=True, exist_ok=True)
+          (preview / '.keep').write_text('')
+
+          # بدون الملف ده أندرويد بيشيل الأصوات من نسخة release (تقليص الموارد)
+          (raw / 'keep.xml').write_text(
+              '<?xml version="1.0" encoding="utf-8"?>\n'
+              '<resources xmlns:tools="http://schemas.android.com/tools"'
+              ' tools:keep="@raw/adhan_*" />\n'
+          )
+
           src = pathlib.Path('sounds')
           if src.exists():
-              raw.mkdir(parents=True, exist_ok=True)
               for f in sorted(src.rglob('*')):
                   if not f.is_file():
                       continue
                   stem = unicodedata.normalize('NFC', f.stem).strip()
                   key = names.get(stem)
                   if key:
-                      shutil.copy(f, raw / ('adhan_' + key + '.mp3'))
+                      name = 'adhan_' + key + '.mp3'
+                      shutil.copy(f, raw / name)
+                      shutil.copy(f, preview / name)
                       print('added', key, '<-', f.name)
                   else:
                       print('skipped', f.name)
